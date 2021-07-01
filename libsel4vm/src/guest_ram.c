@@ -154,21 +154,21 @@ int vm_ram_touch(vm_t *vm, uintptr_t addr, size_t size, ram_touch_callback_fn to
     uintptr_t next_addr;
     uintptr_t end_addr = (uintptr_t)(addr + size);
     if (!is_ram_region(vm, addr, size)) {
-        ZF_LOGE("Failed to touch ram region: Not registered RAM region");
+        ZF_LOGE("Failed to touch ram region at 0x%lx of size %zu: Not registered RAM region", addr, size);
         return -1;
     }
     access_cookie.touch_fn = touch_callback;
     access_cookie.data = cookie;
     access_cookie.vm = vm;
     for (current_addr = addr; current_addr < end_addr; current_addr = next_addr) {
-        uintptr_t current_aligned = PAGE_ALIGN_4K(current_addr);
-        uintptr_t next_page_start = current_aligned + PAGE_SIZE_4K;
+        uintptr_t current_aligned = PAGE_ALIGN_2M(current_addr);
+        uintptr_t next_page_start = current_aligned + PAGE_SIZE_2M;
         next_addr = MIN(end_addr, next_page_start);
         access_cookie.size = next_addr - current_addr;
         access_cookie.offset = current_addr - addr;
         access_cookie.current_addr = current_addr;
         int result = vspace_access_page_with_callback(&vm->mem.vm_vspace, &vm->mem.vmm_vspace, (void *)current_aligned,
-                                                      seL4_PageBits, seL4_AllRights, 1, touch_access_callback, &access_cookie);
+                                                      seL4_LargePageBits, seL4_AllRights, 1, touch_access_callback, &access_cookie);
         if (result) {
             return result;
         }
@@ -277,7 +277,7 @@ static vm_frame_t ram_ut_alloc_iterator(uintptr_t addr, void *cookie)
     if (!vm) {
         return frame_result;
     }
-    int page_size = seL4_PageBits;
+    int page_size = seL4_LargePageBits;
     uintptr_t frame_start = ROUND_DOWN(addr, BIT(page_size));
     cspacepath_t path;
     error = vka_cspace_alloc_path(vm->vka, &path);
